@@ -1,3 +1,4 @@
+# import packages
 library(MASS)
 
 # --------------- generate data ---------------
