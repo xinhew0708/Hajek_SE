@@ -341,7 +341,3 @@ sum(covest3[,1] < covtrue & covest3[,2] > covtrue) / iter * 100
 #sum(covest4[,1] < covtrue & covest4[,2] > covtrue) / iter * 100
 sum(covest5[,1] < covtrue & covest5[,2] > covtrue) / iter * 100
 
-#sd(covest2[,1])^2 + abs(colMeans(covest2)[1] - covtrue)^2
-#sd(covest2[,2])^2 + abs(colMeans(covest2)[2] - covtrue)^2
-#sd(covest3[,1])^2 + abs(colMeans(covest3)[1] - covtrue)^2
-#sd(covest3[,2])^2 + abs(colMeans(covest3)[2] - covtrue)^2
