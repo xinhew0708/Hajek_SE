@@ -1,0 +1,295 @@
+---
+title: "Simulation Results"
+author: "Xinhe Wang"
+date: "2024-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(ggplot2)
+library(grid)
+library(gtable) 
+library(ggh4x)
+library(cowplot)
+library(latex2exp)
+```
+
+```{r}
+# Read results
+path = '/Users/xinhew/Desktop/research/M-estimator/simulation/case1many_small4/'
+results <- read.csv(paste0(path, 'case1results10000.csv'))
+results <- results[,2:ncol(results)]
+```
+
+```{r}
+# Function for plotting
+generate_plot1 <- function(df, y_lab, x_lab, h=0){
+  p1 <- ggplot(data = df, 
+               aes(x = x, y = y, 
+                   group = interaction(estimator, design), 
+                   color = estimator,
+                   shape = estimator, linetype = design)) +
+    geom_line(lwd = 1) + geom_point(size = 2) + 
+    facet_grid2(rows = vars(B), cols = vars(paste(size, design)),
+                scales = "free_x", independent = "x") + 
+    ylab(y_lab) + xlab(TeX(x_lab)) + #ylim(c(-15,300)) + 
+    geom_hline(yintercept=h, color = "grey", linewidth=1.1) + 
+    scale_color_brewer(palette="Paired") +
+    theme_minimal()
+  return(p1)
+}
+
+generate_plot_CI <- function(df, y_lab, x_lab, h){
+  p <- ggplot(data = df, aes(x = x)) +
+  geom_line(aes(y = y1, color = estimator, 
+                linetype = "DF adjusted", 
+                group = interaction(estimator, "DF")), lwd = 1) +
+  geom_point(aes(y = y1, color = estimator, shape = estimator, 
+                 group = interaction(estimator, "DF")), size = 2) +
+  geom_line(aes(y = y2, color = estimator, 
+                linetype = "Profile-type", 
+                group = interaction(estimator, "Profile")), lwd = 1) +
+  geom_point(aes(y = y2, color = estimator, shape = estimator, 
+                group = interaction(estimator, "Profile")), size = 2) +
+  facet_grid2(rows = vars(B), cols = vars(paste(size, design)), 
+              scales = "free_x", independent = "x",
+              space = "free", drop = TRUE) +
+  ylab(y_lab) + xlab(TeX(x_lab)) +
+  scale_color_brewer(palette="Paired") +
+  scale_linetype_manual(values = c("DF adjusted" = "solid", 
+                                   "Profile-type" = "dashed")) +
+  theme_minimal() +
+  guides(color = guide_legend(title = "Estimator"), 
+         shape = guide_legend(title = "Estimator"), 
+         linetype = guide_legend(title = "CI"))
+  if (h == 95){
+    p <- p + 
+      geom_hline(yintercept = h, color = "grey", linewidth = 1.1)
+  }
+  return(p)
+}
+```
+
+
+```{r}
+# Results to data frame
+nest = 3
+df.results <- data.frame(results)
+names(df.results) <- c("Bias", "RelativeBias", "SD",
+                       "WaldCIlength", "WaldCICoverage",
+                       "DFadjustedCIlength", "DFadjustedCICoverage",
+                       "ProfileCIlength", "ProfileCICoverage",
+                       "alpha", "beta", "size", "B", "design")
+df.results$size <- as.factor(paste("Size", df.results$size))
+df.results$B <- as.factor(paste(df.results$B, "Strata"))
+df.results[df.results$design == 'U', 'design'] <- 'Unb'
+df.results$design <- as.factor(paste0(df.results$design, "alanced Design"))
+df.results$estimator <- as.factor(rep(c("1","2","HC2"), nrow(results)/3))
+
+```
+
+```{r}
+# Case 1: many small strata
+plots <- list()
+p <- 3
+for (i in 1:(2*p)){
+  if (i <= p){
+    df.results$x = df.results$alpha
+    idx <- rep(seq(0,nrow(df.results)-1,30), each=15) + 1:15
+    x_lab = r"($\alpha$)"
+  } else {
+    df.results$x = df.results$beta
+    idx <- rep(seq(0,nrow(df.results)-1,30), each=15) + 16:30
+    x_lab = r"($\beta$)"
+  }
+  df.results$y <- switch(1 + i %% p, 
+                         df.results$SD,
+                         df.results$Bias,
+                         df.results$RelativeBias)
+  y_lab <- switch(1 + i %% p,
+                  'SD',
+                  'Bias',
+                  "Relative Bias (%)")
+  h = switch(1 + i %% p, 0,0,0)
+  plots[[i]] = generate_plot1(df.results[idx, ], y_lab, x_lab, h)
+}
+
+for (j in 1:p){
+  plot(plot_grid(plots[[j]],plots[[j+p]], ncol=1))
+}
+```
+
+```{r}
+# Case 1: many small strata
+p <- 2
+for (i in 1:(2*p)){
+  if (i <= p){
+    df.results$x = df.results$alpha
+    idx <- rep(seq(0,nrow(df.results)-1,30), each=15) + 1:15
+    x_lab = r"($\alpha$)"
+  } else {
+    df.results$x = df.results$beta
+    idx <- rep(seq(0,nrow(df.results)-1,30), each=15) + 16:30
+    x_lab = r"($\beta$)"
+  }
+  df.results$y1 <- switch(1 + i %% p, 
+                          df.results$DFadjustedCIlength,
+                          df.results$DFadjustedCICoverage)
+  df.results$y2 <- switch(1 + i %% p, 
+                          df.results$ProfileCIlength,
+                          df.results$ProfileCICoverage)
+  y_lab <- switch(1 + i %% p,
+                  'CI Length',
+                  'CI Coverage (%)')
+  h = switch(1 + i %% p, 0, 95)
+  plots[[6+i]] = generate_plot_CI(df.results[idx, ], y_lab, x_lab, h)
+}
+
+for (j in 7:8){
+  plot(plot_grid(plots[[j]],plots[[j+p]], ncol=1))
+}
+
+```
+
+```{r}
+# Case 2: a few large strata
+# Read results
+path = '/Users/xinhew/Desktop/research/M-estimator/simulation/case2a_few_large4/'
+results <- read.csv(paste(path, 'case2results10000.csv', sep = ''))
+results <- results[,2:ncol(results)]
+
+nest <- 2
+df.results <- data.frame(results)
+names(df.results) <- c("Bias", "RelativeBias", "SD",
+                       "WaldCIlength", "WaldCICoverage",
+                       "DFadjustedCIlength", "DFadjustedCICoverage",
+                       "ProfileCIlength", "ProfileCICoverage",
+                       "alpha", "beta", "size", "B", "design")
+df.results$size <- factor(paste("Size", df.results$size), 
+                          levels = paste("Size", c(10,20,50)))
+df.results$B <- as.factor(paste(df.results$B, "Strata"))
+df.results[df.results$design == 'U', 'design'] <- 'Unb'
+df.results$design <- as.factor(paste0(df.results$design, "alanced"))
+df.results$estimator <- as.factor(rep(c("1","HC2"), nrow(results)/2))
+```
+
+```{r}
+# Function for plotting
+generate_plot <- function(df, y_lab, x_lab, h=0){
+  p1 <- ggplot(data = df, 
+               aes(x = x, y = y, 
+                   group = interaction(estimator, design), 
+                   color = estimator,
+                   shape = estimator, linetype = design)) +
+    geom_line(lwd = 1) + geom_point(size = 2) + 
+    facet_grid2(cols = vars(size), scales = "free_x", independent = "x") + 
+    ylab(y_lab) + xlab(TeX(x_lab)) + #ylim(c(-15,300)) + 
+    geom_hline(yintercept=h, color = "grey", linewidth=1.1) + 
+    scale_color_brewer(palette="Paired") +
+    theme_minimal() #+
+    #scale_color_manual(values = c("HC2" = "yellowgreen"))
+  return(p1)
+}
+
+generate_plot_CI2 <- function(df, y_lab, x_lab, h){
+  p <- ggplot(data = df, aes(x = x)) +
+  geom_line(aes(y = y1, color = estimator, 
+                linetype = "DF adjusted", 
+                group = interaction(estimator, "DF")), lwd = 1) +
+  geom_point(aes(y = y1, color = estimator, shape = estimator, 
+                 group = interaction(estimator, "DF")), size = 2) +
+  geom_line(aes(y = y2, color = estimator, 
+                linetype = "Profile-type", 
+                group = interaction(estimator, "Profile")), lwd = 1) +
+  geom_point(aes(y = y2, color = estimator, shape = estimator, 
+                group = interaction(estimator, "Profile")), size = 2) +
+  facet_grid2(rows = vars(design), cols = vars(size), 
+              scales = "free_x", independent = "x",
+              space = "free", drop = TRUE) +
+  ylab(y_lab) + xlab(TeX(x_lab)) +
+  scale_color_brewer(palette="Paired") +
+  scale_linetype_manual(values = c("DF adjusted" = "solid", 
+                                   "Profile-type" = "dotted")) +
+  theme_minimal() +
+  guides(color = guide_legend(title = "Estimator"), 
+         shape = guide_legend(title = "Estimator"), 
+         linetype = guide_legend(title = "CI"))
+  if (h == 95){
+    p <- p + 
+      geom_hline(yintercept = h, color = "grey", linewidth = 1.1)
+  }
+  return(p)
+}
+```
+
+```{r}
+plots2 <- list()
+p <- 3
+for (i in 1:(2*p)){
+  if (i <= p){
+    df.results$x = df.results$alpha
+    idx <- rep(seq(0,nrow(df.results)-1,20), each=10) + 1:10
+    x_lab = r"($\alpha$)"
+  } else {
+    df.results$x = df.results$beta
+    idx <- rep(seq(0,nrow(df.results)-1,20), each=10) + 11:20
+    x_lab = r"($\beta$)"
+  }
+  df.results$y <- switch(1 + i %% p, 
+                         df.results$SD,
+                         df.results$Bias,
+                         df.results$RelativeBias)
+  y_lab <- switch(1 + i %% p,
+                  'SD',
+                  'Bias',
+                  "Relative Bias (%)")
+  h = switch(1 + i %% p, 0,0,0)
+  plots2[[i]] = generate_plot(df.results[idx, ], y_lab, x_lab, h)
+}
+
+for (j in 1:p){
+  plot(plot_grid(plots2[[j]], plots2[[j+p]], ncol=1))
+}
+```
+
+```{r}
+# Case 2 plot CI
+p <- 2
+for (i in 1:(2*p)){
+  if (i <= p){
+    df.results$x = df.results$alpha
+    idx <- rep(seq(0,nrow(df.results)-1,20), each=10) + 1:10
+    x_lab = r"($\alpha$)"
+  } else {
+    df.results$x = df.results$beta
+    idx <- rep(seq(0,nrow(df.results)-1,20), each=10) + 11:20
+    x_lab = r"($\beta$)"
+  }
+  df.results$y1 <- switch(1 + i %% p, 
+                          df.results$DFadjustedCIlength,
+                          df.results$DFadjustedCICoverage)
+  df.results$y2 <- switch(1 + i %% p, 
+                          df.results$ProfileCIlength,
+                          df.results$ProfileCICoverage)
+  y_lab <- switch(1 + i %% p,
+                  'CI Length',
+                  'CI Coverage (%)')
+  h = switch(1 + i %% p, 0, 95)
+  plots2[[6+i]] = generate_plot_CI2(df.results[idx, ], y_lab, x_lab, h)
+}
+
+for (j in 7:8){
+  plot(plot_grid(plots2[[j]], plots2[[j+p]], ncol=1))
+}
+```
+
+```{r}
+```
+
+
+
