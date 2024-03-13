@@ -1,2 +1,2 @@
 # design-based-SE
-This is a repository for practicing git-related commands.
+Replication code for the simulation studies of design-based variance estimation for difference of Hajek estimators in stratified RCTs.
